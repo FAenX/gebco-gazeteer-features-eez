@@ -1,7 +1,7 @@
-# Project Title: Underwater Data EEZ Assignment
+# Project Title: Features Data EEZ Assignment
 
 ## Description
-This project processes underwater data to determine whether each point lies within an Exclusive Economic Zone (EEZ). The data is processed using Pandas and GeoPandas libraries to achieve spatial joins between underwater data points and EEZ boundaries.
+This project processes features data to determine whether each point lies within an Exclusive Economic Zone (EEZ). The data is processed using Pandas and GeoPandas libraries to achieve spatial joins between features data points and EEZ boundaries.
 
 ## File Structure
 ```
@@ -9,7 +9,8 @@ project-root/
 │
 ├── example_data/
 │   ├── eez_v12.shp
-│   ├── underwater.csv
+|   |-- eez_v12.shx
+│   ├── features.csv
 │
 ├── gdp_example/
 │   ├── main.py
@@ -22,41 +23,69 @@ project-root/
 ### main.py
 The script `main.py` performs the following tasks:
 1. **Load EEZ Shapefile**: Reads the EEZ shapefile into a GeoDataFrame using GeoPandas.
-2. **Read Underwater CSV Data**: Loads underwater data from a CSV file into a Pandas DataFrame.
+2. **Read Features CSV Data**: Loads features data from a CSV file into a Pandas DataFrame.
 3. **Convert Coordinates to Geometries**: Converts the longitude and latitude columns into Shapely Point objects and creates a new GeoDataFrame.
-4. **Spatial Join**: Performs a spatial join to determine whether each underwater data point is within an EEZ boundary.
+4. **Spatial Join**: Performs a spatial join to determine whether each features data point is within an EEZ boundary.
 5. **Flag EEZ Points**: Adds a new column to flag points within an EEZ.
 6. **Save Output**: Writes the resulting DataFrame to a new CSV file.
 
 ```python
 # main.py
 
+# %%
+# %%
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import Point, shape
+from shapely import wkt
 
-# Load EEZ shapefile as a GeoDataFrame
-shapefile_path = "/workspace/example_data/eez_v12.shp"
+# Load EEZ shapefile /example_data as a GeoDataFrame
+# Replace with the actual path to your shapefile
+shapefile_path = "/gdp_example/example_data/eez_v12.shp"
 eez_gdf = gpd.read_file(shapefile_path)
 
-# Read the CSV data into a Pandas DataFrame
-underwater = pd.read_csv("/workspace/example_data/underwater.csv")
 
-# Convert the longitude and latitude columns to Shapely Point objects
-underwater['geometry'] = underwater.apply(lambda x: Point((float(x.longitude), float(x.latitude))), axis=1)
-underwater = underwater.dropna(subset=['geometry'])
+# %%
+# Read the CSV /example_data into a Pandas DataFrame
+features = pd.read_csv("/gdp_example/example_data/features.csv")
+print(features.columns)
+print(features["Coordinates"].head())
 
-# Create a GeoDataFrame from the underwater DataFrame
-underwater_gdf = gpd.GeoDataFrame(underwater, geometry='geometry')
-within_shape = underwater_gdf.sjoin(eez_gdf, how='left', predicate='within')
+# Convert the X and Y columns to a list of shapely Point objects
+features['geometry'] = features['Coordinates'].apply(wkt.loads)
+features = features.dropna(subset=['geometry'])
+# # get lat long from point 
 
-# Rename 'index_right' to 'EEZ' and set it to True if it has a value, otherwise False
+# # Create a GeoDataFrame from the ports DataFrame
+features_gdf = gpd.GeoDataFrame(features, geometry='geometry')
+within_shape = features_gdf.sjoin(eez_gdf, how='left',predicate='within')
+
+print(within_shape.columns)
+
+# rename Index Right to EEZ and if it has a value replace it to true if it does not then false
 within_shape['EEZ'] = within_shape['index_right'].apply(lambda x: True if x >= 0 else False)
 within_shape = within_shape.drop(columns=['index_right'])
 
-# Save the resulting DataFrame to a new CSV file
-within_shape.to_csv("/workspace/example_data/underwater_eez_6.csv", index=False)
+# new column with all geometry converted to points
+within_shape['point'] = within_shape['geometry'].apply(lambda x: x.centroid)
+
+# get lat long from Point
+within_shape['Latitude'] = within_shape['point'].apply(lambda x: x.y)
+within_shape['Longitude'] = within_shape['point'].apply(lambda x: x.x)
+
+
+within_shape.to_csv("/gdp_example/example_data/features_eez_6.csv", index=False)
 ```
+
+## Data Sources
+- **Features Data**: The features data is stored in a CSV file with columns for `longitude` and `latitude`.
+- **EEZ Shapefile**: The Exclusive Economic Zone (EEZ) boundaries are stored in a shapefile format. The shapefile contains polygons representing the EEZ boundaries of different countries.
+
+- **Features Data Source**: [NOAA National Centers for Environmental Information](https://www.ngdc.noaa.gov/gazetteer/)
+
+
+
+
+
 
 ## How to Run
 1. Ensure you have the required data files in the `example_data` directory.

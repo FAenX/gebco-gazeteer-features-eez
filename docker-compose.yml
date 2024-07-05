@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  gdp_example:
+    build:
+      context: .
+    volumes:
+      - ./:/gdp_example
+      - home:/home/vscode
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+volumes:
+  home:
